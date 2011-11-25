@@ -30,9 +30,6 @@ VERSION = '0.9.4'
 PROG = os.path.basename(os.path.splitext(__file__)[0])
 
 
-rst_command = 'rst2html.py --template=./rst_template.txt %s'
-
-
 ######################################################################
 # Configuration file parameters.
 # Create a separate configuration file named .blogpost in your $HOME
@@ -153,7 +150,7 @@ class Blogpost(object):
         self.title = None
         self.status = None  # Publication status ('published','unpublished').
         self.post_type = None   # 'post' or 'page'.
-        self.doctype = None     # 'article','book','manpage' or 'html'. and rst.
+        self.doctype = None     # 'article','book','manpage' or 'html'.
         self.created_at = None  # Seconds since epoch in UTC.
         self.updated_at = None  # Seconds since epoch in UTC.
         self.media = {}  # Contains Media objects keyed by document src path.
@@ -179,9 +176,6 @@ class Blogpost(object):
     def is_html(self):
         return self.doctype == 'html'
 
-    def is_rst(self):
-        return self.doctype == 'rst'
-
     def is_page(self):
         return self.post_type == 'page'
 
@@ -195,34 +189,22 @@ class Blogpost(object):
                 self.media_dir = os.path.abspath(os.path.dirname(blog_file))
             self.cache_file = os.path.splitext(blog_file)[0] + '.blogpost'
 
-    def set_title_from_rst_file(self):
-        """
-        set title attribute from ====== * ======in rst file.
-        TODO: use re.
-        """
-        self.title = os.popen('sed -n 2p %s' % self.blog_file).read().strip()
-
     def set_title_from_blog_file(self):
         """
         Set title attribute from title in blog file.
         """
-        # AsciiDoc blog file.
-        #TODO: Skip leading comment blocks.
-        for line in open(self.blog_file):
-            # Skip blank lines and comment lines.
-            if not re.match(r'(^//)|(^\s*$)', line):
-                break
-        else:
-            die('unable to find document title in %s' % self.blog_file)
-        self.title = line.strip()
-        if self.title.startswith('= '):
-            self.title = line[2:].strip()
-
-    def rst2html(self):
-        """
-        TODO
-        """
-        pass
+        if not self.is_html():
+            # AsciiDoc blog file.
+            #TODO: Skip leading comment blocks.
+            for line in open(self.blog_file):
+                # Skip blank lines and comment lines.
+                if not re.match(r'(^//)|(^\s*$)', line):
+                    break
+            else:
+                die('unable to find document title in %s' % self.blog_file)
+            self.title = line.strip()
+            if self.title.startswith('= '):
+                self.title = line[2:].strip()
 
     def asciidoc2html(self):
         """
@@ -537,8 +519,6 @@ class Blogpost(object):
         if not self.title:
             if self.is_html():
                 die('missing title: use --title option')
-            elif self.is_rst():
-                self.set_title_from_rst_file()
             else:
                 # AsciiDoc blog file.
                 self.set_title_from_blog_file()
@@ -547,8 +527,6 @@ class Blogpost(object):
         # Generate blog content from blog file.
         if self.is_html():
             self.content = open(self.blog_file)
-        elif self.is_rst():
-            self.content = os.popen(rst_command % self.blog_file)
         else:
             self.asciidoc2html()
         # Conditionally upload media files.
@@ -770,7 +748,7 @@ else:
         if not os.path.isfile(blog_file):
             die('missing BLOG_FILE: %s' % blog_file)
         blog_file = os.path.abspath(blog_file)
-    if OPTIONS.doctype not in (None,'article','book','manpage','html','rst'):
+    if OPTIONS.doctype not in (None,'article','book','manpage','html'):
         die('invalid DOCTYPE: %s' % OPTIONS.doctype)
     if OPTIONS.categories and \
             (command not in ('create','update','categories','post')
